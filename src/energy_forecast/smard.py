@@ -41,7 +41,8 @@ def fetch_series(session: requests.Session, name: str, start: datetime) -> pl.Da
     stamps = [t for t in _get(session, f"{root}/index_hour.json")["timestamps"] if t >= cutoff]
     urls = [f"{root}/{filter_id}_{region}_hour_{t}.json" for t in stamps]
     with ThreadPoolExecutor(8) as pool:
-        rows = [row for chunk in pool.map(lambda u: _get(session, u)["series"], urls) for row in chunk]
+        chunks = pool.map(lambda u: _get(session, u)["series"], urls)
+        rows = [row for chunk in chunks for row in chunk]
     return pl.DataFrame(
         rows, schema={"ms": pl.Int64, "value": pl.Float64}, orient="row", strict=False
     ).with_columns(series=pl.lit(name))
