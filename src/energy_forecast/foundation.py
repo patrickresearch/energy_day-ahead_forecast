@@ -4,7 +4,7 @@ import numpy as np
 import polars as pl
 from chronos import Chronos2Pipeline
 
-from energy_forecast.forecast import TEST
+from energy_forecast.data import TEST
 
 COVARIATES = ["load_fc", "wind_fc", "solar_fc", "residual_load_fc"]
 CONTEXT = 2048
@@ -48,7 +48,7 @@ def backtest(
     return pl.DataFrame(
         {
             "time": df["time"].gather(rows),
-            "pred": pred,
+            "pred": pred.astype(np.float64),
             "model": "chronos2_cov" if covariates else "chronos2",
         }
     )

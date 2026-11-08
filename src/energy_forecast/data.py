@@ -1,3 +1,4 @@
+from datetime import date
 from pathlib import Path
 
 import polars as pl
@@ -5,6 +6,8 @@ import polars as pl
 ROOT = Path(__file__).resolve().parents[2]
 RAW = ROOT / "data/raw/smard_hourly.parquet"
 TZ = "Europe/Berlin"
+VAL = (date(2024, 11, 1), date(2025, 10, 31))
+TEST = (date(2025, 11, 1), date(2026, 10, 31))
 
 MIX = {
     "Wind": ["wind_onshore", "wind_offshore"],

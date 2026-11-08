@@ -5,10 +5,8 @@ import lightgbm as lgb
 import numpy as np
 import polars as pl
 
+from energy_forecast.data import TEST
 from energy_forecast.features import FEATURES
-
-VAL = (date(2024, 11, 1), date(2025, 10, 31))
-TEST = (date(2025, 11, 1), date(2026, 10, 31))
 
 PARAMS = {
     "objective": "l1",
