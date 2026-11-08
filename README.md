@@ -2,6 +2,8 @@
 
 Forecasting hourly day-ahead electricity prices for the German-Luxembourg bidding zone and explaining how wind, solar and load drive them. A Streamlit dashboard shows the energy mix across hours, days and years.
 
+**Live app:** [energyday-aheadforecast.streamlit.app](https://energyday-aheadforecast-243klyvi9tmndknagytd8m.streamlit.app/)
+
 ![Median day-ahead price by hour and month](docs/img/price_heatmap.png)
 
 The heatmap shows the patterns that make this market interesting: the solar trough around midday in summer, evening peaks in winter, and a growing number of hours with negative prices.
