@@ -6,7 +6,13 @@ import numpy as np
 import polars as pl
 
 from energy_forecast.data import TEST
-from energy_forecast.features import FEATURES
+from energy_forecast.features import (
+    CALENDAR,
+    FEATURES,
+    MACRO_FEATURES,
+    PRUNED,
+    WEATHER_FEATURES,
+)
 
 PARAMS = {
     "objective": "l1",
@@ -26,7 +32,7 @@ PARAMS = {
 @dataclass(frozen=True)
 class Config:
     name: str = "lightgbm"
-    features: tuple[str, ...] = tuple(FEATURES)
+    features: tuple[str, ...] = tuple(PRUNED)
     anchor: str | None = "prev_day_mean"
     window_days: int | None = 2 * 365
     params: dict = field(default_factory=lambda: dict(PARAMS))
@@ -34,6 +40,17 @@ class Config:
 
 
 DEFAULT = Config()
+
+CONFIGS = {
+    "lightgbm": DEFAULT,
+    "lightgbm_v1": Config("lightgbm_v1", features=tuple(FEATURES)),
+    "lgbm_calendar": Config("lgbm_calendar", features=(*FEATURES, *CALENDAR)),
+    "lgbm_weather": Config("lgbm_weather", features=(*FEATURES, *WEATHER_FEATURES)),
+    "lgbm_macro": Config("lgbm_macro", features=(*FEATURES, *MACRO_FEATURES)),
+    "lgbm_all": Config(
+        "lgbm_all", features=(*FEATURES, *CALENDAR, *WEATHER_FEATURES, *MACRO_FEATURES)
+    ),
+}
 
 
 def _period(df: pl.DataFrame, period: tuple[date, date]) -> pl.DataFrame:

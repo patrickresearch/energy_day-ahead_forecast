@@ -1,6 +1,8 @@
 import holidays
 import polars as pl
 
+from energy_forecast.data import MACRO, WEATHER
+
 LAGS = [24, 48, 168]
 
 BASE_FEATURES = [
@@ -30,6 +32,32 @@ FEATURES = [
     "residual_load_fc_day_delta",
 ]
 
+CALENDAR = ["doy", "bridge_day", "christmas"]
+WEATHER_FEATURES = ["temp_wx", "wind_wx", "solar_wx"]
+MACRO_FEATURES = ["co2", "coal"]
+PRUNED = [
+    "residual_load_fc_rel_day",
+    "residual_load_fc_day_delta",
+    "residual_load_fc",
+    "prev_day_mean",
+    "prev_day_min",
+    "price_lag168",
+    "prev_day_max",
+    "price_lag24",
+    "hour",
+    "residual_load_fc_delta24",
+    "res_share_fc",
+    "coal",
+    "load_fc",
+    "solar_fc",
+    "solar_wx",
+    "price_lag48",
+    "temp_wx",
+    "residual_load_fc_day_max",
+    "dow",
+    "co2",
+]
+
 
 def build(df: pl.DataFrame) -> pl.DataFrame:
     years = df["local"].dt.year().unique().to_list()
@@ -42,6 +70,23 @@ def build(df: pl.DataFrame) -> pl.DataFrame:
         month=pl.col("local").dt.month(),
         holiday=pl.col("local").dt.date().is_in(holiday_dates).cast(pl.Int8),
         wind_fc=pl.col("wind_onshore_fc") + pl.col("wind_offshore_fc"),
+        doy=pl.col("local").dt.ordinal_day(),
+        christmas=(
+            ((pl.col("local").dt.month() == 12) & (pl.col("local").dt.day() >= 24))
+            | ((pl.col("local").dt.month() == 1) & (pl.col("local").dt.day() == 1))
+        ).cast(pl.Int8),
+    )
+    df = df.with_columns(
+        bridge_day=(
+            ((pl.col("dow") == 5) & pl.col("day").dt.offset_by("-1d").is_in(holiday_dates))
+            | ((pl.col("dow") == 1) & pl.col("day").dt.offset_by("1d").is_in(holiday_dates))
+        ).cast(pl.Int8)
+    )
+    macro = pl.read_parquet(MACRO).with_columns(pl.col("day").dt.offset_by("2d"))
+    df = (
+        df.join(pl.read_parquet(WEATHER), on="time", how="left")
+        .join_asof(macro, on="day", strategy="backward")
+        .sort("time")
     )
     daily = (
         df.group_by("day")

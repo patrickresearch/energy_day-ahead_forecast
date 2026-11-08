@@ -5,6 +5,8 @@ import polars as pl
 
 ROOT = Path(__file__).resolve().parents[2]
 RAW = ROOT / "data/raw/smard_hourly.parquet"
+WEATHER = ROOT / "data/raw/weather_hourly.parquet"
+MACRO = ROOT / "data/raw/macro_daily.parquet"
 TZ = "Europe/Berlin"
 VAL = (date(2024, 11, 1), date(2025, 10, 31))
 TEST = (date(2025, 11, 1), date(2026, 10, 31))
