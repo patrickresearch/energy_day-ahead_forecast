@@ -104,3 +104,14 @@ def score(df: pl.DataFrame, preds: pl.DataFrame) -> pl.DataFrame:
         )
         .sort("mae")
     )
+
+
+def ensemble(preds: pl.DataFrame, models: list[str], name: str = "ensemble") -> pl.DataFrame:
+    return (
+        preds.filter(pl.col("model").is_in(models))
+        .group_by("time")
+        .agg(pred=pl.col("pred").mean(), k=pl.len())
+        .filter(pl.col("k") == len(models))
+        .select("time", "pred", model=pl.lit(name))
+        .sort("time")
+    )
