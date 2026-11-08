@@ -92,6 +92,16 @@ def mix_area(df: pl.DataFrame, start: date, end: date) -> go.Figure:
     return fig
 
 
+def price_line(df: pl.DataFrame, start: date, end: date) -> go.Figure:
+    d = df.filter(pl.col("local").dt.date().is_between(start, end))
+    fig = px.line(d, x="local", y="price", title="Day-ahead price")
+    fig.update_traces(
+        line={"width": 2, "color": INK}, hovertemplate="%{x|%d %b %H:00}: %{y:.1f} €/MWh"
+    )
+    fig.update_layout(xaxis_title="", yaxis_title="€/MWh", hovermode="x unified")
+    return fig
+
+
 def merit_order(df: pl.DataFrame) -> go.Figure:
     d = df.drop_nulls(["residual_load", "price"]).with_columns(
         year=pl.col("local").dt.year(), residual_gw=pl.col("residual_load") / 1000

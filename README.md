@@ -19,6 +19,19 @@ The heatmap shows the patterns that make this market interesting: the solar trou
 | 2025 | 89.3 | 573 |
 | 2026 (to 8 Nov) | 117.7 | 462 |
 
+### Generation mix: summer vs. winter week
+
+In summer, solar pushes the price to zero or below around midday and the price recovers in the evening. In winter, wind and fossil plants cover the load and prices peak in the morning and evening.
+
+![Generation by source, summer week](docs/img/mix_summer.png)
+![Generation by source, winter week](docs/img/mix_winter.png)
+
+### Merit order
+
+Residual load is the load that wind and solar do not cover. Each year it traces the supply curve: low residual load meets cheap or negative prices, and high residual load requires gas plants that set the price. The 2022 panel shows the gas crisis.
+
+![Residual load vs day-ahead price](docs/img/merit_order.png)
+
 ## Setup
 
 - **Data:** [SMARD](https://www.smard.de) (Bundesnetzagentur), hourly from 2019. Includes price, generation by source, load, and TSO forecasts for load, wind and solar. Weather forecasts come from Open-Meteo (previous model runs), and EUA and coal prices from Yahoo Finance.
@@ -66,6 +79,7 @@ uv run streamlit run app/streamlit_app.py
 ```
 
 - `benchmark.py` runs the walk-forward backtest for the selected models from any start date (`--start`, `--end`, `--models`) and logs to Weights & Biases (`--no-wandb` to disable).
+- `build_app_data.py` precomputes everything the app shows. It also issues a forecast for the latest day with complete TSO forecasts and appends it to `data/app/forecasts.parquet`, which builds a live track record.
 - Chronos-2 runs in a separate process because torch and LightGBM ship conflicting OpenMP runtimes.
 
 ## Structure

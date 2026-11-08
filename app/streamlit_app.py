@@ -28,7 +28,9 @@ def show(fig) -> None:
 
 energy, preds, scores = read("energy"), read("backtest"), read("scores")
 importance, drivers = read("importance"), read("drivers")
-first, last = energy["local"].min().date(), energy["local"].max().date()
+forecasts, next_drivers = read("forecasts"), read("next_drivers")
+first = energy["local"].min().date()
+last = energy.drop_nulls("price")["local"].max().date()
 test_start, test_end = preds["time"].min(), preds["time"].max()
 
 st.title("German day-ahead power prices")
@@ -37,7 +39,39 @@ st.caption(
     "forecast for delivery day D issued at 12:00 on D-1"
 )
 
-mix_tab, forecast_tab, drivers_tab = st.tabs(["Energy mix", "Forecast", "Drivers"])
+next_tab, mix_tab, forecast_tab, drivers_tab = st.tabs(
+    ["Next day", "Energy mix", "Backtest", "Drivers"]
+)
+
+with next_tab:
+    target = forecasts["target"].max()
+    latest = forecasts.filter(pl.col("target") == target).drop("target")
+    ensemble = latest.filter(pl.col("model") == "ensemble")["pred"]
+    st.subheader(f"Forecast for {target:%A, %d %b %Y}")
+    mean, low, high = st.columns(3)
+    mean.metric("Daily mean", f"{ensemble.mean():.1f} €/MWh")
+    low.metric("Lowest hour", f"{ensemble.min():.1f} €/MWh")
+    high.metric("Highest hour", f"{ensemble.max():.1f} €/MWh")
+    actual = energy.filter(pl.col("local").dt.date() == target)["price"]
+    if actual.is_not_null().any():
+        st.caption(
+            "The auction result is already published and shown for comparison. The forecast only "
+            "uses information available before gate closure."
+        )
+    show(plots.forecast_lines(energy, latest, target, target))
+    show(plots.driver_day(next_drivers, target))
+    record = forecasts.join(energy.select("time", "price"), on="time").drop_nulls("price")
+    if record.height:
+        st.markdown("**Live track record** (all archived next-day forecasts with known prices)")
+        st.dataframe(
+            record.group_by("model")
+            .agg(
+                days=pl.col("target").n_unique(),
+                mae=(pl.col("pred") - pl.col("price")).abs().mean().round(2),
+            )
+            .sort("mae"),
+            hide_index=True,
+        )
 
 with mix_tab:
     period = st.date_input(
@@ -45,6 +79,7 @@ with mix_tab:
     )
     if len(period) == 2:
         show(plots.mix_area(energy, *period))
+        show(plots.price_line(energy, *period))
     years = energy["local"].dt.year().unique().sort().to_list()
     year = st.select_slider("Year", years, value=years[-1])
     show(plots.price_heatmap(energy, year))

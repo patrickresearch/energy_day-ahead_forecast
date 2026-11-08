@@ -8,7 +8,6 @@ from energy_forecast.data import TEST
 
 COVARIATES = ["load_fc", "wind_fc", "solar_fc", "residual_load_fc"]
 CONTEXT = 2048
-HORIZON = 25
 
 
 def load_pipeline(device: str = "mps") -> Chronos2Pipeline:
@@ -28,6 +27,7 @@ def backtest(
         .agg(pl.col("row").min(), n=pl.len())
         .sort("day")
     )
+    horizon = days["n"].max()
     price = df["price"].to_numpy()
     cov = {c: df[c].to_numpy() for c in COVARIATES}
     inputs = []
@@ -35,10 +35,10 @@ def backtest(
         item = {"target": price[i - CONTEXT : i]}
         if covariates:
             item["past_covariates"] = {c: v[i - CONTEXT : i] for c, v in cov.items()}
-            item["future_covariates"] = {c: v[i : i + HORIZON] for c, v in cov.items()}
+            item["future_covariates"] = {c: v[i : i + horizon] for c, v in cov.items()}
         inputs.append(item)
     quantiles, _ = pipeline.predict_quantiles(
-        inputs, prediction_length=HORIZON, quantile_levels=[0.5]
+        inputs, prediction_length=horizon, quantile_levels=[0.5]
     )
     starts, lengths = days["row"].to_list(), days["n"].to_list()
     rows = np.concatenate([np.arange(i, i + n) for i, n in zip(starts, lengths, strict=True)])

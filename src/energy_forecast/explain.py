@@ -52,12 +52,20 @@ def _predict_with(
 
 
 def drivers(
-    model: lgb.Booster, raw: pl.DataFrame, period: tuple[date, date], cfg: Config = DEFAULT
+    model: lgb.Booster,
+    raw: pl.DataFrame,
+    period: tuple[date, date],
+    cfg: Config = DEFAULT,
+    reference_period: tuple[date, date] | None = None,
 ) -> pl.DataFrame:
     days = raw["local"].dt.date()
     in_period = raw.filter(days.is_between(*period))
     cols = [c for cols in DRIVERS.values() for c in cols]
-    reference = in_period.select(pl.col(cols).mean()).row(0, named=True)
+    reference = (
+        raw.filter(days.is_between(*(reference_period or period)))
+        .select(pl.col(cols).mean())
+        .row(0, named=True)
+    )
     names, n = list(DRIVERS), len(DRIVERS)
     value = {
         frozenset(s): _predict_with(model, raw, reference, frozenset(s), period, cfg)
