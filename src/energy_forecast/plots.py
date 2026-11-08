@@ -180,3 +180,45 @@ def mae_by(df: pl.DataFrame, preds: pl.DataFrame, by: str) -> go.Figure:
     )
     fig.update_layout(yaxis_title="MAE (€/MWh)", xaxis_title="")
     return fig
+
+
+def shap_importance(imp: pl.DataFrame, top: int = 15) -> go.Figure:
+    d = imp.head(top).reverse()
+    fig = px.bar(d, x="mean_abs_shap", y="feature", orientation="h", title="Mean |SHAP| value")
+    fig.update_traces(marker_color=CATEGORICAL[0], hovertemplate="%{y}: %{x:.1f} €/MWh")
+    fig.update_layout(xaxis_title="€/MWh", yaxis_title="", height=40 + 28 * len(d))
+    return fig
+
+
+def shap_dependence(
+    features: pl.DataFrame, shap: pl.DataFrame, feature: str, n: int = 5000
+) -> go.Figure:
+    d = pl.DataFrame({"value": features[feature], "shap": shap[feature]}).sample(
+        min(n, features.height), seed=42
+    )
+    fig = px.scatter(d, x="value", y="shap", opacity=0.3, title=f"SHAP dependence: {feature}")
+    fig.update_traces(marker={"size": 4, "color": CATEGORICAL[0]})
+    fig.update_layout(xaxis_title=feature, yaxis_title="SHAP (€/MWh)")
+    return fig
+
+
+def shap_day(shap: pl.DataFrame, features: list[str], day: date, top: int = 8) -> go.Figure:
+    d = shap.filter(pl.col("local").dt.date() == day).select(*features, "base", "anchor").mean()
+    contrib = sorted(((f, d[f][0]) for f in features), key=lambda x: abs(x[1]), reverse=True)
+    rest = sum(v for _, v in contrib[top:])
+    start = d["base"][0] + d["anchor"][0]
+    names = ["prev-day mean + base", *(f for f, _ in contrib[:top]), "other", "forecast"]
+    values = [start, *(v for _, v in contrib[:top]), rest, 0]
+    fig = go.Figure(
+        go.Waterfall(
+            x=names,
+            y=values,
+            measure=["absolute", *["relative"] * (top + 1), "total"],
+            increasing={"marker": {"color": CATEGORICAL[7]}},
+            decreasing={"marker": {"color": CATEGORICAL[0]}},
+            totals={"marker": {"color": INK}},
+            hovertemplate="%{x}: %{y:.1f} €/MWh<extra></extra>",
+        )
+    )
+    fig.update_layout(title=f"Daily mean forecast explained, {day:%d %b %Y}", yaxis_title="€/MWh")
+    return fig
