@@ -8,6 +8,8 @@ import streamlit as st
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
+for module in [m for m in sys.modules if m.startswith("energy_forecast")]:
+    del sys.modules[module]
 
 from energy_forecast import plots
 
