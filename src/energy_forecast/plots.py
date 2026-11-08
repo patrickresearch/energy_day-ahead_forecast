@@ -298,3 +298,54 @@ def driver_day(drivers: pl.DataFrame, day: date) -> go.Figure:
         hovermode="x unified",
     )
     return fig
+
+
+def dm_heatmap(dm: pl.DataFrame) -> go.Figure:
+    models = dm["model"].to_list()
+    z = dm.select(models).to_numpy().astype(float)
+    fig = px.imshow(
+        z,
+        x=models,
+        y=models,
+        zmin=0,
+        zmax=0.1,
+        color_continuous_scale=SEQUENTIAL[::-1],
+        text_auto=".3f",
+        labels={"x": "More accurate?", "y": "Than", "color": "p-value"},
+        title="Diebold-Mariano test: p-value that the column model beats the row model",
+    )
+    fig.update_traces(hovertemplate="%{x} better than %{y}: p = %{z:.4f}<extra></extra>")
+    return fig
+
+
+def tft_importance(vsn: pl.DataFrame, model: str) -> go.Figure:
+    d = (
+        vsn.filter(pl.col("model") == model)
+        .unpivot(["past", "future"], index="variable", variable_name="part", value_name="weight")
+        .drop_nulls("weight")
+    )
+    fig = px.bar(
+        d,
+        x="weight",
+        y="variable",
+        color="part",
+        barmode="group",
+        orientation="h",
+        color_discrete_sequence=CATEGORICAL,
+        title=f"TFT variable selection weights: {model}",
+    )
+    fig.update_layout(xaxis_title="Mean weight", yaxis_title="", height=120 + 14 * d.height)
+    return fig
+
+
+def attention_by_lag(lags: pl.DataFrame) -> go.Figure:
+    fig = px.line(
+        lags,
+        x="lag",
+        y="weight",
+        color="model",
+        color_discrete_sequence=CATEGORICAL,
+        title="TFT attention by position relative to forecast start",
+    )
+    fig.update_layout(xaxis_title="Hours relative to 00:00 of delivery day", yaxis_title="Weight")
+    return fig
