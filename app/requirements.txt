@@ -1,0 +1,4 @@
+streamlit>=1.50
+polars>=2.1
+plotly>=7.1
+numpy>=2.0
