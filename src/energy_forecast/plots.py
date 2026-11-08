@@ -4,6 +4,7 @@ import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
 import polars as pl
+from plotly.subplots import make_subplots
 
 from energy_forecast.data import MIX, RENEWABLE
 
@@ -18,7 +19,9 @@ CATEGORICAL = [
     "#6250d6",
     "#e34948",
 ]
+DIVERGING = ["#184f95", "#3987e5", "#9ec5f4", "#f0efec", "#f2a3a2", "#e34948", "#a8302f"]
 INK = "#0b0b0b"
+DRIVER_COLORS = {"Wind": CATEGORICAL[0], "Solar": CATEGORICAL[1], "Load": CATEGORICAL[2]}
 MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
 
 
@@ -221,4 +224,67 @@ def shap_day(shap: pl.DataFrame, features: list[str], day: date, top: int = 8) -
         )
     )
     fig.update_layout(title=f"Daily mean forecast explained, {day:%d %b %Y}", yaxis_title="€/MWh")
+    return fig
+
+
+def driver_profile(drivers: pl.DataFrame) -> go.Figure:
+    names = list(DRIVER_COLORS)
+    cells = drivers.group_by(hour=pl.col("local").dt.hour(), month=pl.col("local").dt.month()).agg(
+        pl.col(names).mean()
+    )
+    limit = float(cells.select(pl.max_horizontal(pl.col(names).abs().max())).item())
+    fig = make_subplots(rows=1, cols=len(names), subplot_titles=names, shared_yaxes=True)
+    for i, name in enumerate(names, 1):
+        grid = np.full((24, 12), np.nan)
+        grid[cells["hour"].to_numpy(), cells["month"].to_numpy() - 1] = cells[name].to_numpy()
+        fig.add_heatmap(
+            z=grid,
+            x=MONTHS,
+            y=list(range(24)),
+            coloraxis="coloraxis",
+            hovertemplate=f"{name}<br>%{{x}}, %{{y}}:00<br>%{{z:+.1f}} €/MWh<extra></extra>",
+            row=1,
+            col=i,
+        )
+    fig.update_layout(
+        title="Mean price effect by hour and month (vs. average hour)",
+        coloraxis={
+            "colorscale": DIVERGING,
+            "cmin": -limit,
+            "cmax": limit,
+            "colorbar": {"title": "€/MWh"},
+        },
+        height=480,
+    )
+    fig.update_yaxes(autorange="reversed", dtick=3)
+    fig.update_yaxes(title_text="Hour", row=1, col=1)
+    return fig
+
+
+def driver_day(drivers: pl.DataFrame, day: date) -> go.Figure:
+    d = drivers.filter(pl.col("local").dt.date() == day)
+    fig = go.Figure()
+    for name, color in DRIVER_COLORS.items():
+        fig.add_bar(
+            x=d["local"],
+            y=d[name],
+            name=name,
+            marker={"color": color, "line": {"width": 2, "color": "white"}},
+            hovertemplate=f"{name}: %{{y:+.1f}} €/MWh<extra></extra>",
+        )
+    fig.add_scatter(
+        x=d["local"],
+        y=d["pred"] - d["reference"],
+        name="Total",
+        mode="lines+markers",
+        line={"width": 2, "color": INK},
+        marker={"size": 8},
+        hovertemplate="Total: %{y:+.1f} €/MWh<extra></extra>",
+    )
+    fig.update_layout(
+        barmode="relative",
+        title=f"Price effect of wind, solar and load, {day:%d %b %Y}",
+        yaxis_title="€/MWh vs. average hour",
+        hovermode="x unified",
+    )
     return fig

@@ -28,6 +28,10 @@ def _total(cols: list[str]) -> pl.Expr:
     return sum(pl.col(c) for c in cols)
 
 
+def residual_load_fc() -> pl.Expr:
+    return pl.col("load_fc") - _total(["wind_onshore_fc", "wind_offshore_fc", "solar_fc"])
+
+
 def load(path: Path = RAW) -> pl.DataFrame:
     return (
         pl.read_parquet(path)
@@ -35,8 +39,7 @@ def load(path: Path = RAW) -> pl.DataFrame:
         .with_columns(
             *(_total(cols).alias(name) for name, cols in MIX.items()),
             residual_load=pl.col("load") - _total(["wind_onshore", "wind_offshore", "solar"]),
-            residual_load_fc=pl.col("load_fc")
-            - _total(["wind_onshore_fc", "wind_offshore_fc", "solar_fc"]),
+            residual_load_fc=residual_load_fc(),
             local=pl.col("time").dt.convert_time_zone(TZ).dt.replace_time_zone(None),
         )
     )

@@ -9,6 +9,7 @@ dependencies = [
     "plotly>=6.0",
     "polars>=1.0",
     "requests>=2.32",
+    "wandb>=0.19",
 ]
 
 [dependency-groups]

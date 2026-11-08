@@ -5,7 +5,7 @@ from datetime import date
 
 import polars as pl
 
-from energy_forecast import features, forecast
+from energy_forecast import features, forecast, plots, tracking
 from energy_forecast.data import ROOT, TEST, load
 
 parser = argparse.ArgumentParser()
@@ -15,10 +15,14 @@ parser.add_argument(
     "--models", nargs="+", default=["naive_24h", "lightgbm", "chronos2_cov", "ensemble"]
 )
 parser.add_argument("--device", default="mps")
+parser.add_argument("--wandb", action=argparse.BooleanOptionalAction, default=True)
 args = parser.parse_args()
 
 period = (args.start, args.end)
 name = f"{args.start}_{args.end}"
+lgbm = [forecast.CONFIGS[m] for m in args.models if m in forecast.CONFIGS]
+config = {**vars(args), "lightgbm": tracking.configs(lgbm)}
+run = tracking.start("benchmark", name, config, args.wandb)
 df = features.build(load())
 
 preds = []
@@ -44,4 +48,8 @@ scores = forecast.score(df, preds)
 (ROOT / "results").mkdir(exist_ok=True)
 preds.write_parquet(ROOT / f"data/processed/benchmark_{name}.parquet")
 scores.write_csv(ROOT / f"results/scores_{name}.csv")
+tracking.log_scores(run, scores)
+run.log({"mae_by_month": plots.mae_by(df, preds, "month")})
+run.log({"mae_by_hour": plots.mae_by(df, preds, "hour")})
+run.finish()
 print(scores)
